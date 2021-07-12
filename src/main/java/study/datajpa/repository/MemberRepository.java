@@ -1,11 +1,17 @@
 package study.datajpa.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import study.datajpa.dto.MemberDto;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import study.datajpa.entity.Member;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
@@ -18,4 +24,36 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Query("select m from Member m where m.username = :username and m.age = :age")
     List<Member> findUser(@Param("username") String username, @Param("age") int age);
+
+    @Query("select m.username from Member m")
+    List<String> findUsernameList();
+
+    //new operation 사용. (추후 쿼리dsl 사용시 패키지명을 입력하지 않아도 된다.)
+    @Query("select new study.datajpa.dto.MemberDto(m.id, m.username, t.name) " +
+            "from Member m join m.team t")
+    List<MemberDto> findMemberDto();
+
+    //컬렉션 바인딩
+    @Query("select m from Member m where m.username in :names")
+    List<Member> findByNames(@Param("names") Collection<String> names);
+
+    //컬렉션 조회
+    List<Member> findListByUsername(String name);
+    //단건 조회
+    Member findMemberByUsername(String name);
+    //단건optional 조회
+    Optional<Member> findOptionalByUsername(String name);
+
+    //메소드 이름으로 쿼리생성
+    //Page 반환 : count 쿼리 동작
+    Page<Member> findPageByAge(int age, Pageable pageable);
+    //Slice 반환 : count 쿼리 x
+    Slice<Member> findSliceByAge(int age, Pageable pageable);
+    //List 반환 : count 쿼리 x
+    List<Member> findListByAge(int age, Pageable pageable);
+
+    //count 쿼리 분리
+    @Query(value = "select m from Member m left join m.team t",
+            countQuery = "select count(m) from Member m")
+    Page<Member> findCountByAge(int age, Pageable pageable);
 }
