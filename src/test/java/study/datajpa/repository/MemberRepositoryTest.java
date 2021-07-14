@@ -1,6 +1,7 @@
 package study.datajpa.repository;
 
 import org.assertj.core.api.Assertions;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,6 +14,8 @@ import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +32,8 @@ class MemberRepositoryTest {
     MemberRepository memberRepository;
     @Autowired
     TeamRepository teamRepository;
+    @PersistenceContext
+    EntityManager em;
 
     @Test
     public void testMember() {
@@ -188,5 +193,61 @@ class MemberRepositoryTest {
         Assertions.assertThat(result.getTotalPages()).isEqualTo(2); //전체 페이지 번호
         Assertions.assertThat(result.isFirst()).isTrue(); //첫번째 항목인가
         Assertions.assertThat(result.hasNext()).isTrue(); //다음 페이지가 있는가
+    }
+
+    @Test
+    public void bulkUpdate() {
+        //given
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 19));
+        memberRepository.save(new Member("member3", 20));
+        memberRepository.save(new Member("member4", 30));
+        memberRepository.save(new Member("member5", 40));
+        Member member6 = new Member("member6", 50);
+        memberRepository.save(member6);
+        //when
+        int updateCount = memberRepository.bulkAgePlus(20);
+
+        em.flush();
+        em.clear();
+        member6.setAge(member6.getAge()+2);
+
+        List<Member> result = memberRepository.findByUsername("member6");
+        Member member5 = result.get(0);
+        System.out.println("member5 = " + member5.getAge());
+
+        //then
+        Assertions.assertThat(updateCount).isEqualTo(4);
+    }
+
+    @Test
+    public void findMemberLazy() {
+        //given
+        //member1 -> teamA
+        //member2 -> teamB
+        Team teamA = new Team("teamA");
+        Team teamB = new Team("teamB");
+        teamRepository.save(teamA);
+        teamRepository.save(teamB);
+        Member member1 = new Member("member1", 10, teamA);
+        Member member2 = new Member("member1", 10, teamB);
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+
+        em.flush();
+        em.clear();
+
+        //when
+        List<Member> members = memberRepository.findEntityGraphByUsername("member1");
+
+        //then
+        for (Member member : members) {
+            System.out.println("member.getUsername() = " + member.getUsername());
+            //member.getTeam()은 db에서 조회하기 전인 프록시 데이터 형태이다. team을 조회하는 sql문이 생성되지 않음
+            //출력값 => member.getTeam().getClass() = class study.datajpa.entity.Team$HibernateProxy$TaiCEYpU
+            System.out.println("member.getTeam().getClass() = " + member.getTeam().getClass());
+            //team 엔티티 안의 name를 조회하므로 team을 조회하는 sql문이 지연 로딩으로 생성됨.
+            System.out.println("member.getTeam().getName() = " + member.getTeam().getName());
+        }
     }
 }
