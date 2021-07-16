@@ -274,5 +274,49 @@ class MemberRepositoryTest {
         List<Member> memberCustom = memberRepository.findMemberCustom();
     }
 
+    @Test
+    public void projections() {
+        //given
+        Team team = new Team("teamA");
+        em.persist(team);
+        
+        Member m1 = new Member("m1", 0, team);
+        Member m2 = new Member("m2", 0, team);
+        em.persist(m1);
+        em.persist(m2);
+        em.flush();
+        em.clear();
+        
+        //when
+        List<NestedClosedProjection> result = memberRepository.findProjectionsByUsername("m1", NestedClosedProjection.class);
+        
+        //then
+        for (NestedClosedProjection nestedClosedProjection : result) {
+            System.out.println("NestedClosedProjection.getUsername() = " + nestedClosedProjection.getUsername());
+            System.out.println("NestedClosedProjection.getTeam() = " + nestedClosedProjection.getTeam());
+        }
+    }
 
+    @Test
+    public void nativeQuery() {
+        //given
+        Team team = new Team("teamA");
+        em.persist(team);
+
+        Member m1 = new Member("m1", 0, team);
+        Member m2 = new Member("m2", 0, team);
+        em.persist(m1);
+        em.persist(m2);
+        em.flush();
+        em.clear();
+
+        //when
+        //Member findMember = memberRepository.findByNativeQuery("m1");
+        Page<MemberProjection> result = memberRepository.findByNativeQueryProjection(PageRequest.of(0, 3));
+        for (MemberProjection memberProjection : result) {
+            System.out.println("memberProjection.getUsername() = " + memberProjection.getUsername());
+            System.out.println("memberProjection.getUsername() = " + memberProjection.getTeamName());
+        }
+         
+    }
 }
